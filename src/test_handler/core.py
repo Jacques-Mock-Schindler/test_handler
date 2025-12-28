@@ -112,6 +112,9 @@ class StampCreator:
     def stamp_remover(self) -> None:
         os.remove('./data/tmp/stamp.png')
 
+class Stamper:
+    pass
+
 
     
 
