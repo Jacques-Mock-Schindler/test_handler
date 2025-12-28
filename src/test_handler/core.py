@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import pypdf
-import fitz #PyMuPDF
+import pymupdf #PyMuPDF
 from PIL import Image
 
 class Importer:
@@ -121,7 +121,7 @@ class Stamper:
         self.df   = df
         self.stamp = Image.open('./data/tmp/stamp.png')
         self.stamp_width, self.stamp_height = self.stamp.size
-        self.doc  = fitz.open('./data/fahne.pdf')
+        self.doc  = pymupdf.open('./data/fahne.pdf')
         self.file = self._page_extractor()
         
     def _page_extractor(self):
@@ -143,7 +143,7 @@ class Stamper:
         print(f"Auf PDF: {stamp_width:.1f} x {stamp_height:.1f} Punkte")
         
         x, y = position
-        img_rect = fitz.Rect(x, y, x + stamp_width, y + stamp_height)
+        img_rect = pymupdf.Rect(x, y, x + stamp_width, y + stamp_height)
         
         # Bild einfügen
         self.file.insert_image(img_rect, filename='./data/tmp/stamp.png')
@@ -157,7 +157,47 @@ class Stamper:
             self.doc.close()
 
 class Resampler:
-    pass
+    def __init__(self, df):
+        self.df = df
+        self.path = './data/tmp'
+
+    def folder_creator(self) -> None:
+        
+        for name in self.df.index:
+            path = self.path + '/' + name
+
+            os.mkdir(path)
+
+    def spliter(self) -> None:
+        doc = pymupdf.open('./data/tmp/gestempelte_seite.pdf')
+        
+        for name in self.df.index:
+            start_page = int(self.df.loc[name, 'First'] - 1)
+            end_page   = int(self.df.loc[name, 'Last'] - 1s)
+            
+            new_doc    = pymupdf.open()
+
+            new_doc.insert_pdf(doc,
+                               from_page=start_page, 
+                               to_page=end_page)
+            
+            clean_title = str(self.df.loc[name, 'Titel']).strip()
+            clean_date  = str(self.df.loc[name, 'Datum']).strip()
+
+            file_name   = f'{clean_date}_{name}_{clean_title}.pdf'
+
+            save_path   = os.path.join(
+                             self.path,
+                             name,
+                             file_name
+                             )
+
+            new_doc.save(save_path)
+
+            new_doc.close()
+
+            print(f'Gespeichert: {save_path}')
+
 
 
 
@@ -174,4 +214,7 @@ if __name__ == '__main__':
     df = test.main()
     stamp_pad = Stamper('Arduch', df)
     stamp_pad.stamp_and_save('./data/tmp/gestempelte_seite.pdf')
+    sampler = Resampler(df)
+    sampler.folder_creator()
+    sampler.spliter()
     input('Enter drüken, um die Anzeige zu beenden.')
