@@ -1,6 +1,7 @@
 # core.py
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
 class Importer:
     def __init__(self) -> None:
@@ -37,7 +38,7 @@ class Importer:
         return self.df
 
 
-class Stamp:
+class StampCreator:
     def __init__(self, name: str, df) -> None:
         self.name = name
         self.df   = df
@@ -99,12 +100,18 @@ class Stamp:
         ax.set_xlabel('Note')
         ax.set_title(f'Individuelle Note von {self.df.loc[name, 'Vorname']} und Notenverteilung')
 
+        fig.savefig('./data/tmp/stamp.png')
+
         # Set labels and title
         # ax.set_xlabel('Temperature')
         # ax.set_title('Simple Boxplot')
 
         # Show the plot
         return fig
+
+    def stamp_remover(self) -> None:
+        os.remove('./data/tmp/stamp.png')
+
 
     
 
@@ -113,7 +120,7 @@ if __name__ == '__main__':
     test   = Importer()
     print(test.df.head())
     name = input('Namen eingeben: ')
-    stamp = Stamp(name, test.df)
+    stamp = StampCreator(name, test.df)
     plot = stamp.boxplot()
     plot.show()
     input('Enter drüken, um die Anzeige zu beenden.')
