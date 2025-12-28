@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import pypdf
+import fitz #PyMuPDF
 from PIL import Image
 
 class Importer:
@@ -118,15 +119,42 @@ class Stamper:
     def __init__(self, name, df):
         self.name = name
         self.df   = df
-        self.stamp= Image.open('./data/tmp/stamp.png')
+        self.stamp = Image.open('./data/tmp/stamp.png')
+        self.stamp_width, self.stamp_height = self.stamp.size
+        self.doc  = fitz.open('./data/fahne.pdf')
         self.file = self._page_extractor()
         
     def _page_extractor(self):
         page_number = int(self.df.loc[self.name, 'First']) - 1
-        pdf_reader  = pypdf.PdfReader('./data/fahne.pdf')
-        page        = pdf_reader.pages[page_number]
-
+        page = self.doc[page_number]
         return page
+    
+    def stamp_and_save(self, output_path, position=(400, 100), max_width=200):
+        """
+        Stempelt die Seite unter Beibehaltung des Seitenverhältnisses
+        max_width: Maximale Breite des Stempels auf dem PDF in Punkten
+        """
+        # Berechne Höhe basierend auf dem Seitenverhältnis
+        aspect_ratio = self.stamp_height / self.stamp_width
+        stamp_width = max_width
+        stamp_height = max_width * aspect_ratio
+        
+        print(f"Original-Stempel: {self.stamp_width} x {self.stamp_height} px")
+        print(f"Auf PDF: {stamp_width:.1f} x {stamp_height:.1f} Punkte")
+        
+        x, y = position
+        img_rect = fitz.Rect(x, y, x + stamp_width, y + stamp_height)
+        
+        # Bild einfügen
+        self.file.insert_image(img_rect, filename='./data/tmp/stamp.png')
+        
+        # Speichern
+        self.doc.save(output_path)
+        print(f"Gestempelte PDF gespeichert: {output_path}")
+    
+    def __del__(self):
+        if hasattr(self, 'doc'):
+            self.doc.close()
 
 
 
@@ -142,4 +170,5 @@ if __name__ == '__main__':
     stamp.boxplot()
     df = test.main()
     stamp_pad = Stamper('Arduch', df)
+    stamp_pad.stamp_and_save('./data/tmp/gestempelte_seite.pdf')
     input('Enter drüken, um die Anzeige zu beenden.')
