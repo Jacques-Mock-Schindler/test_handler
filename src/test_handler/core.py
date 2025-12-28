@@ -14,8 +14,8 @@ class Importer:
         self.path_tmp = os.path.join(self.path_to_save, 'tmp')
         self.path_output = os.path.join(self.path_to_save, 'output')
 
-        os.mkdirs(self.path_tmp, exist_ok=True)
-        os.mkdris(self.path_output, exist_ok=True)
+        os.makedirs(self.path_tmp, exist_ok=True)
+        os.makedirs(self.path_output, exist_ok=True)
 
         self.df = pd.read_csv(self.path_steuerdatei, 
                               sep=';',
@@ -70,9 +70,10 @@ class Importer:
 
 
 class StampCreator:
-    def __init__(self, name: str, df) -> None:
+    def __init__(self, name: str, importer: Importer) -> None:
         self.name = name
-        self.df   = df
+        self.df   = importer.df
+        self.path_tmp = importer.path_tmp
 
     def boxplot(self):
         # Create a figure and axis
@@ -131,55 +132,47 @@ class StampCreator:
         ax.set_xlabel('Note')
         ax.set_title(f'Individuelle Note von {self.df.loc[name, 'Vorname']} und Notenverteilung')
 
-        fig.savefig('./data/tmp/stamp.png')
+        stamp_path = os.path.join(self.path_tmp, 'stamp.png')        
+        fig.savefig(stamp_path)
 
         return fig
 
     def stamp_remover(self) -> None:
-        os.remove('./data/tmp/stamp.png')
+        stamp_path = os.path.join(self.path_tmp, 'stamp.png')
+        os.remove(stamp_path)
 
 class Stamper:
-    def __init__(self, name, df):
+    def __init__(self, name, importer: Importer):
         self.name = name
-        self.df   = df
+        self.df   = importer.df
+        self.path_tmp = importer.path_tmp
+        self.path_output = importer.path_output
+        self.doc = importer.doc
+
         self.file_path = self._file_path_creator()
-        self.stamp = Image.open('./data/tmp/stamp.png')
+
+        stamp_path = os.path.join(self.path_tmp, 'stamp.png')
+        self.stamp = Image.open(stamp_path)
         self.stamp_width, self.stamp_height = self.stamp.size
-        self.doc  = self._file_importer()
+
         self.page_to_stamp = self._page_extractor()
         
     def _page_extractor(self):
-        page = self.doc[0]
+        doc = pymupdf.open(self.file_path)
+        page = doc[0]
         return page
 
-    def _file_path_creator(self, file_path=""):
-        file_path = input('Geben Sie den Pfad zum Speicherort ein: ')
+    def _file_path_creator(self):
         clean_title = str(self.df.loc[name, 'Titel']).strip()
         clean_date  = str(self.df.loc[name, 'Datum']).strip()
+        file_name   = f'{clean_date}_{self.name}_{clean_title}.pdf'
 
-        file_name   = f'{clean_date}_{name}_{clean_title}.pdf'
-
-        if file_path == '':
-            path   = os.path.join(
-                             './data/tmp',
-                             name,
-                             file_name
-                             )
-        else:
-            path = os.path.join(
-                file_path,
-                file_name
-            )
+        path = os.path.join(self.path_tmp, self.name, file_name)
 
         return path
 
 
-    def _file_importer(self):      
-
-        doc = pymupdf.open(self.file_path)
-
-        return doc
-        
+     
     
     def stamp_and_save(self, position=(400, 100), max_width=200):
         """
@@ -190,63 +183,48 @@ class Stamper:
         aspect_ratio = self.stamp_height / self.stamp_width
         stamp_width = max_width
         stamp_height = max_width * aspect_ratio
-        
-        print(f"Original-Stempel: {self.stamp_width} x {self.stamp_height} px")
-        print(f"Auf PDF: {stamp_width:.1f} x {stamp_height:.1f} Punkte")
-        
+              
         x, y = position
         img_rect = pymupdf.Rect(x, y, x + stamp_width, y + stamp_height)
         
-        # Bild einfügen
-        self.page_to_stamp.insert_image(img_rect, filename='./data/tmp/stamp.png')
+        stamp_path = os.path.join(self.path_tmp, 'stamp.png')
+        self.page_to_stamp.insert_image(img_rect, filename=stamp_path)
+
+        clean_title = str(self.df.loc[self.name, 'Titel']).strip()
+        clean_date = str(self.df.loc[self.name, 'Datum']).strip()
+        output_filename = f'{clean_date}_{self.name}_{clean_title}_gestempelt.pdf'
+
+        doc = pymupdf.open(self.file_path)
+        doc[0].insert_image(img_rect, filename=stamp_path)
+        doc.save(output_filename)
+        doc.close()
         
-        # Speichern
-        self.doc.save(self.file_path, incremental=True, encryption=pymupdf.PDF_ENCRYPT_KEEP)
-
-
-
-    def __del__(self):
-        if hasattr(self, 'doc'):
-            self.doc.close()
-
+    
 class Resampler:
-    def __init__(self, df):
-        self.df = df
-        self.path = './data/tmp'
+    def __init__(self, importer: Importer):
+        self.df = importer.df
+        self.path_tmp = importer.path_tmp
+        self.doc = importer.doc
 
     def folder_creator(self) -> None:
-        
         for name in self.df.index:
-            path = self.path + '/' + name
-
-            os.mkdir(path)
+            path = os.path.join(self.path_tmp, name)
+            os.makedirs(path, exist_ok=True)  # exist_ok für Sicherheit
 
     def spliter(self) -> None:
-        doc = pymupdf.open('./data/fahne.pdf')
-        
         for name in self.df.index:
             start_page = int(self.df.loc[name, 'First'] - 1)
-            end_page   = int(self.df.loc[name, 'Last'] - 1)
+            end_page = int(self.df.loc[name, 'Last'] - 1)
             
-            new_doc    = pymupdf.open()
-
-            new_doc.insert_pdf(doc,
-                               from_page=start_page, 
-                               to_page=end_page)
+            new_doc = pymupdf.open()
+            new_doc.insert_pdf(self.doc, from_page=start_page, to_page=end_page)
             
             clean_title = str(self.df.loc[name, 'Titel']).strip()
-            clean_date  = str(self.df.loc[name, 'Datum']).strip()
-
-            file_name   = f'{clean_date}_{name}_{clean_title}.pdf'
-
-            save_path   = os.path.join(
-                             self.path,
-                             name,
-                             file_name
-                             )
-
+            clean_date = str(self.df.loc[name, 'Datum']).strip()
+            file_name = f'{clean_date}_{name}_{clean_title}.pdf'
+            
+            save_path = os.path.join(self.path_tmp, name, file_name)
             new_doc.save(save_path)
-
             new_doc.close()
 
 
@@ -256,21 +234,28 @@ class Resampler:
     
 
 if __name__ == '__main__':
-    # path = input('Pfad hier eingeben: ')
-    test   = Importer()
-    print(test.df.head())
-    df = test.main()
-
-    sampler = Resampler(df)
+    # Importer erstellen
+    importer = Importer()
+    print(importer.df.head())
+    
+    # Resampler mit Importer-Instanz
+    sampler = Resampler(importer)
     sampler.folder_creator()
     sampler.spliter()
-
-    for name in df.index:
-        stamp = StampCreator(name, df)
-        stamp.boxplot()
-        stamp_pad = Stamper(name, df)
-        stamp_pad.stamp_and_save()
-
     
-
-    input('Enter drüken, um die Anzeige zu beenden.')
+    # Über alle Schüler iterieren
+    for name in importer.df.index:
+        print(f"\nVerarbeite {name}...")
+        
+        # StampCreator mit Importer-Instanz
+        stamp = StampCreator(name, importer)
+        stamp.boxplot()
+        
+        # Stamper mit Importer-Instanz
+        stamp_pad = Stamper(name, importer)
+        stamp_pad.stamp_and_save()
+        
+        # Aufräumen
+        #stamp.stamp_remover()
+        
+        print(f"✓ {name} fertig!")
