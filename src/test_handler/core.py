@@ -105,11 +105,6 @@ class StampCreator:
 
         fig.savefig('./data/tmp/stamp.png')
 
-        # Set labels and title
-        # ax.set_xlabel('Temperature')
-        # ax.set_title('Simple Boxplot')
-
-        # Show the plot
         return fig
 
     def stamp_remover(self) -> None:
@@ -129,7 +124,7 @@ class Stamper:
         page = self.doc[page_number]
         return page
     
-    def stamp_and_save(self, output_path, position=(400, 100), max_width=200):
+    def stamp_and_save(self, position=(400, 100), max_width=200):
         """
         Stempelt die Seite unter Beibehaltung des Seitenverhältnisses
         max_width: Maximale Breite des Stempels auf dem PDF in Punkten
@@ -149,7 +144,9 @@ class Stamper:
         self.file.insert_image(img_rect, filename='./data/tmp/stamp.png')
         
         # Speichern
-        self.doc.save(output_path)
+        self.doc.save('./data/tmp/gestempelte_seite.pdf')
+
+
 
     def __del__(self):
         if hasattr(self, 'doc'):
@@ -172,7 +169,7 @@ class Resampler:
         
         for name in self.df.index:
             start_page = int(self.df.loc[name, 'First'] - 1)
-            end_page   = int(self.df.loc[name, 'Last'] - 1s)
+            end_page   = int(self.df.loc[name, 'Last'] - 1)
             
             new_doc    = pymupdf.open()
 
@@ -205,13 +202,12 @@ if __name__ == '__main__':
     # path = input('Pfad hier eingeben: ')
     test   = Importer()
     print(test.df.head())
-    name = input('Namen eingeben: ')
-    stamp = StampCreator(name, test.df)
-    stamp.boxplot()
     df = test.main()
-    stamp_pad = Stamper('Arduch', df)
-    stamp_pad.stamp_and_save('./data/tmp/gestempelte_seite.pdf')
+
     sampler = Resampler(df)
     sampler.folder_creator()
     sampler.spliter()
+
+    
+
     input('Enter drüken, um die Anzeige zu beenden.')
