@@ -150,8 +150,7 @@ class Stamper:
         
         # Speichern
         self.doc.save(output_path)
-        print(f"Gestempelte PDF gespeichert: {output_path}")
-    
+
     def __del__(self):
         if hasattr(self, 'doc'):
             self.doc.close()
@@ -195,8 +194,6 @@ class Resampler:
             new_doc.save(save_path)
 
             new_doc.close()
-
-            print(f'Gespeichert: {save_path}')
 
 
 
