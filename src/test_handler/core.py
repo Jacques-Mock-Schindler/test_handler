@@ -114,15 +114,37 @@ class Stamper:
     def __init__(self, name, df):
         self.name = name
         self.df   = df
+        self.file_path = self._file_path_creator()
         self.stamp = Image.open('./data/tmp/stamp.png')
         self.stamp_width, self.stamp_height = self.stamp.size
-        self.doc  = pymupdf.open('./data/fahne.pdf')
-        self.file = self._page_extractor()
+        self.doc  = self._file_importer()
+        self.page_to_stamp = self._page_extractor()
         
     def _page_extractor(self):
-        page_number = int(self.df.loc[self.name, 'First']) - 1
-        page = self.doc[page_number]
+        page = self.doc[0]
         return page
+
+    def _file_path_creator(self):
+        clean_title = str(self.df.loc[name, 'Titel']).strip()
+        clean_date  = str(self.df.loc[name, 'Datum']).strip()
+
+        file_name   = f'{clean_date}_{name}_{clean_title}.pdf'
+
+        file_path   = os.path.join(
+                             './data/tmp',
+                             name,
+                             file_name
+                             )
+
+        return file_path
+
+
+    def _file_importer(self):      
+
+        doc = pymupdf.open(self.file_path)
+
+        return doc
+        
     
     def stamp_and_save(self, position=(400, 100), max_width=200):
         """
@@ -141,10 +163,10 @@ class Stamper:
         img_rect = pymupdf.Rect(x, y, x + stamp_width, y + stamp_height)
         
         # Bild einfügen
-        self.file.insert_image(img_rect, filename='./data/tmp/stamp.png')
+        self.page_to_stamp.insert_image(img_rect, filename='./data/tmp/stamp.png')
         
         # Speichern
-        self.doc.save('./data/tmp/gestempelte_seite.pdf')
+        self.doc.save(self.file_path, incremental=True, encryption=pymupdf.PDF_ENCRYPT_KEEP)
 
 
 
@@ -165,7 +187,7 @@ class Resampler:
             os.mkdir(path)
 
     def spliter(self) -> None:
-        doc = pymupdf.open('./data/tmp/gestempelte_seite.pdf')
+        doc = pymupdf.open('./data/fahne.pdf')
         
         for name in self.df.index:
             start_page = int(self.df.loc[name, 'First'] - 1)
@@ -207,6 +229,12 @@ if __name__ == '__main__':
     sampler = Resampler(df)
     sampler.folder_creator()
     sampler.spliter()
+
+    for name in df.index:
+        stamp = StampCreator(name, df)
+        stamp.boxplot()
+        stamp_pad = Stamper(name, df)
+        stamp_pad.stamp_and_save()
 
     
 
