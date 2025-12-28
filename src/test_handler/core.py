@@ -2,6 +2,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import pypdf
+from PIL import Image
 
 class Importer:
     def __init__(self) -> None:
@@ -113,7 +115,20 @@ class StampCreator:
         os.remove('./data/tmp/stamp.png')
 
 class Stamper:
-    pass
+    def __init__(self, name, df):
+        self.name = name
+        self.df   = df
+        self.stamp= Image.open('./data/tmp/stamp.png')
+        self.file = self._page_extractor()
+        
+    def _page_extractor(self):
+        page_number = int(self.df.loc[self.name, 'First']) - 1
+        pdf_reader  = pypdf.PdfReader('./data/fahne.pdf')
+        page        = pdf_reader.pages[page_number]
+
+        return page
+
+
 
 
     
@@ -124,6 +139,7 @@ if __name__ == '__main__':
     print(test.df.head())
     name = input('Namen eingeben: ')
     stamp = StampCreator(name, test.df)
-    plot = stamp.boxplot()
-    plot.show()
+    stamp.boxplot()
+    df = test.main()
+    stamp_pad = Stamper('Arduch', df)
     input('Enter drüken, um die Anzeige zu beenden.')
