@@ -156,6 +156,9 @@ class Stamper:
         if hasattr(self, 'doc'):
             self.doc.close()
 
+class Resampler:
+    pass
+
 
 
 
