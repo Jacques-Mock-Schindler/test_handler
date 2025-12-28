@@ -8,18 +8,46 @@ from PIL import Image
 
 class Importer:
     def __init__(self) -> None:
-        path = self._path_dialog()
-        self.df = pd.read_csv(path, sep=';', encoding='utf-8')
+        self.path_steuerdatei = self._path_dialog_steuerdatei()
+        self.path_fahne = self._path_dialog_fahne()
+        self.path_to_save = self._path_to_save_dialog()
+        self.path_tmp = os.path.join(self.path_to_save, 'tmp')
+        self.path_output = os.path.join(self.path_to_save, 'output')
+
+        os.mkdirs(self.path_tmp, exist_ok=True)
+        os.mkdris(self.path_output, exist_ok=True)
+
+        self.df = pd.read_csv(self.path_steuerdatei, 
+                              sep=';',
+                              encoding='utf-8')
         self.df = self._df_cleaner()
+        self.doc = pymupdf.open(self.path_fahne)
         
         
-    def _path_dialog(self, path: str ='./data/steuerung.csv') -> str:
+    def _path_dialog_steuerdatei(self, 
+                                 path: str ='./data/steuerung.csv') -> str:
         path_input = input("Geben Sie den Pfad zu Ihrer Steuerdatei ein: ")
 
         if path_input == "":
             path_input = path
 
         return path_input
+
+    def _path_dialog_fahne(self, path: str = './data/fahne.pdf') -> str:
+        path_input = input("Geben Sie den Pfad zu Ihrer Korrekturfahne ein: ")
+
+        if path_input == "":
+            path_input = path
+
+        return path_input
+
+    def _path_to_save_dialog(self, path: str = './data/tmp/') -> str:
+        path_input = input('Geben Sie den Pfad zum gewünschten Speicherort ein: ')
+
+        if path_input == "":
+            path_to_save = path
+
+        return path_to_save
 
     def _df_cleaner(self):
         df = self.df
@@ -124,19 +152,26 @@ class Stamper:
         page = self.doc[0]
         return page
 
-    def _file_path_creator(self):
+    def _file_path_creator(self, file_path=""):
+        file_path = input('Geben Sie den Pfad zum Speicherort ein: ')
         clean_title = str(self.df.loc[name, 'Titel']).strip()
         clean_date  = str(self.df.loc[name, 'Datum']).strip()
 
         file_name   = f'{clean_date}_{name}_{clean_title}.pdf'
 
-        file_path   = os.path.join(
+        if file_path == '':
+            path   = os.path.join(
                              './data/tmp',
                              name,
                              file_name
                              )
+        else:
+            path = os.path.join(
+                file_path,
+                file_name
+            )
 
-        return file_path
+        return path
 
 
     def _file_importer(self):      
