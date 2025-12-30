@@ -2,24 +2,52 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-import pypdf
-import fitz #PyMuPDF
+import time
+import pymupdf  # PyMuPDF
 from PIL import Image
 
 class Importer:
     def __init__(self) -> None:
-        path = self._path_dialog()
-        self.df = pd.read_csv(path, sep=';', encoding='utf-8')
+        self.path_steuerdatei = self._path_dialog_steuerdatei()
+        self.path_fahne = self._path_dialog_fahne()
+        self.path_to_save = self._path_to_save_dialog()
+        self.path_tmp = os.path.join(self.path_to_save, 'tmp')
+        self.path_output = os.path.join(self.path_to_save, 'output')
+
+        os.makedirs(self.path_tmp, exist_ok=True)
+        os.makedirs(self.path_output, exist_ok=True)
+
+        self.df = pd.read_csv(self.path_steuerdatei, 
+                              sep=';',
+                              encoding='utf-8')
         self.df = self._df_cleaner()
+        self.doc = pymupdf.open(self.path_fahne)
         
         
-    def _path_dialog(self, path: str ='./data/steuerung.csv') -> str:
+    def _path_dialog_steuerdatei(self, 
+                                 path: str ='./data/steuerung.csv') -> str:
         path_input = input("Geben Sie den Pfad zu Ihrer Steuerdatei ein: ")
 
         if path_input == "":
             path_input = path
 
         return path_input
+
+    def _path_dialog_fahne(self, path: str = './data/fahne.pdf') -> str:
+        path_input = input("Geben Sie den Pfad zu Ihrer Korrekturfahne ein: ")
+
+        if path_input == "":
+            path_input = path
+
+        return path_input
+
+    def _path_to_save_dialog(self, path: str = './data/') -> str:  # ✓ KORRIGIERT
+        path_input = input('Geben Sie den Pfad zum gewünschten Speicherort ein: ')
+
+        if path_input == "":
+            path_input = path  # ✓ KORRIGIERT
+
+        return path_input  # ✓ KORRIGIERT
 
     def _df_cleaner(self):
         df = self.df
@@ -42,9 +70,10 @@ class Importer:
 
 
 class StampCreator:
-    def __init__(self, name: str, df) -> None:
+    def __init__(self, name: str, importer: Importer) -> None:
         self.name = name
-        self.df   = df
+        self.df   = importer.df
+        self.path_tmp = importer.path_tmp
 
     def boxplot(self):
         # Create a figure and axis
@@ -67,8 +96,8 @@ class StampCreator:
         bplot['boxes'][0].set_facecolor(box_color)
         bplot['boxes'][0].set_alpha(0.6)
 
-        val_total = self.df.loc[name, 'Total']
-        val_note  = self.df.loc[name, 'Note']
+        val_total = self.df.loc[self.name, 'Total']  # ✓ KORRIGIERT
+        val_note  = self.df.loc[self.name, 'Note']   # ✓ KORRIGIERT
 
         cell_text = [
             ['Punkte', f"{val_total}"],
@@ -78,60 +107,73 @@ class StampCreator:
         table = ax.table(
         cellText=cell_text,
         loc='upper center',
-        cellLoc='left',  # Text innerhalb der Zellen zentrieren
-        colWidths=[0.2, 0.2] # Breite der Spalten (optional anpassbar)
+        cellLoc='left',
+        colWidths=[0.2, 0.2]
         )
         
         for cell in table.get_celld().values():
             cell.set_linewidth(0)
-        # 3. Styling der Tabelle
-        table.scale(1, 2)       # Skaliert die Höhe der Zeilen (damit es luftiger wirkt)
+        table.scale(1, 2)
         table.set_fontsize(12)
 
-        individuelle_note = self.df.loc[name, 'Note']
+        individuelle_note = self.df.loc[self.name, 'Note']  # ✓ KORRIGIERT
     
         ax.scatter(
             x=individuelle_note, 
-            y=1,              # Position auf der Y-Achse
-            color='blue',      # Auffällige Farbe
+            y=1,
+            color='blue',
             marker='o',
-            s=100,            # Größe (Size) des Punktes
-            zorder=3,         # WICHTIG: 3 sorgt dafür, dass der Punkt VOR der Box liegt
+            s=100,
+            zorder=3,
         )
 
         ax.set_yticks([])
         ax.set_xlabel('Note')
-        ax.set_title(f'Individuelle Note von {self.df.loc[name, 'Vorname']} und Notenverteilung')
+        ax.set_title(f'Individuelle Note von {self.df.loc[self.name, "Vorname"]} und Notenverteilung')  # ✓ KORRIGIERT
 
-        fig.savefig('./data/tmp/stamp.png')
+        stamp_path = os.path.join(self.path_tmp, 'stamp.png')        
+        fig.savefig(stamp_path)
+        
+        # ✓ WICHTIG: Figur schließen, damit die Datei freigegeben wird
+        plt.close(fig)
 
-        # Set labels and title
-        # ax.set_xlabel('Temperature')
-        # ax.set_title('Simple Boxplot')
-
-        # Show the plot
         return fig
 
     def stamp_remover(self) -> None:
-        os.remove('./data/tmp/stamp.png')
+        stamp_path = os.path.join(self.path_tmp, 'stamp.png')
+        os.remove(stamp_path)
+
 
 class Stamper:
-    def __init__(self, name, df):
+    def __init__(self, name, importer: Importer):
         self.name = name
-        self.df   = df
-        self.stamp = Image.open('./data/tmp/stamp.png')
-        self.stamp_width, self.stamp_height = self.stamp.size
-        self.doc  = fitz.open('./data/fahne.pdf')
-        self.file = self._page_extractor()
+        self.df   = importer.df
+        self.path_tmp = importer.path_tmp
+        self.path_output = importer.path_output
+        self.doc = importer.doc
+
+        self.file_path = self._file_path_creator()
+
+        # ✓ Bildgröße mit context manager auslesen (schließt automatisch)
+        stamp_path = os.path.join(self.path_tmp, 'stamp.png')
+        with Image.open(stamp_path) as img:
+            self.stamp_width, self.stamp_height = img.size
+
+        # ✓ ENTFERNT: _page_extractor() - wird nicht mehr benötigt
         
-    def _page_extractor(self):
-        page_number = int(self.df.loc[self.name, 'First']) - 1
-        page = self.doc[page_number]
-        return page
+    def _file_path_creator(self):
+        clean_title = str(self.df.loc[self.name, 'Titel']).strip()  # ✓ KORRIGIERT
+        clean_date  = str(self.df.loc[self.name, 'Datum']).strip()  # ✓ KORRIGIERT
+        file_name   = f'{clean_date}_{self.name}_{clean_title}.pdf'
+
+        path = os.path.join(self.path_tmp, self.name, file_name)
+
+        return path
     
-    def stamp_and_save(self, output_path, position=(400, 100), max_width=200):
+    def stamp_and_save(self, position=(400, 100), max_width=200):
         """
-        Stempelt die Seite unter Beibehaltung des Seitenverhältnisses
+        Stempelt die Seite und speichert sie im tmp/<Name>/ Ordner
+        (überschreibt die Original-Datei ohne Suffix)
         max_width: Maximale Breite des Stempels auf dem PDF in Punkten
         """
         # Berechne Höhe basierend auf dem Seitenverhältnis
@@ -141,34 +183,94 @@ class Stamper:
         
         print(f"Original-Stempel: {self.stamp_width} x {self.stamp_height} px")
         print(f"Auf PDF: {stamp_width:.1f} x {stamp_height:.1f} Punkte")
-        
+              
         x, y = position
-        img_rect = fitz.Rect(x, y, x + stamp_width, y + stamp_height)
+        img_rect = pymupdf.Rect(x, y, x + stamp_width, y + stamp_height)
         
-        # Bild einfügen
-        self.file.insert_image(img_rect, filename='./data/tmp/stamp.png')
+        stamp_path = os.path.join(self.path_tmp, 'stamp.png')
         
-        # Speichern
-        self.doc.save(output_path)
-        print(f"Gestempelte PDF gespeichert: {output_path}")
-    
-    def __del__(self):
-        if hasattr(self, 'doc'):
-            self.doc.close()
+        # Output-Pfad ist gleich Input-Pfad (im tmp/<Name>/ Ordner)
+        output_path = self.file_path
+        
+        # Temporärer Pfad für sichere Speicherung
+        temp_path = output_path + '.tmp'
+        
+        print(f"Speichere nach: {output_path}")
+        
+        # ✓ Dokument EINMALIG öffnen, stempeln, temporär speichern und schließen
+        doc = pymupdf.open(self.file_path)
+        doc[0].insert_image(img_rect, filename=stamp_path)
+        doc.save(temp_path)
+        doc.close()
+        
+        # ✓ Original löschen und temporäre Datei umbenennen
+        os.remove(output_path)
+        os.rename(temp_path, output_path)
+        
+        print(f"✓ Gestempelte PDF gespeichert (Original überschrieben)")
 
 
+class Resampler:
+    def __init__(self, importer: Importer):
+        self.df = importer.df
+        self.path_tmp = importer.path_tmp
+        self.doc = importer.doc
 
+    def folder_creator(self) -> None:
+        for name in self.df.index:
+            path = os.path.join(self.path_tmp, name)
+            os.makedirs(path, exist_ok=True)
 
-    
+    def spliter(self) -> None:
+        for name in self.df.index:
+            start_page = int(self.df.loc[name, 'First'] - 1)
+            end_page = int(self.df.loc[name, 'Last'] - 1)
+            
+            new_doc = pymupdf.open()
+            new_doc.insert_pdf(self.doc, from_page=start_page, to_page=end_page)
+            
+            clean_title = str(self.df.loc[name, 'Titel']).strip()
+            clean_date = str(self.df.loc[name, 'Datum']).strip()
+            file_name = f'{clean_date}_{name}_{clean_title}.pdf'
+            
+            save_path = os.path.join(self.path_tmp, name, file_name)
+            new_doc.save(save_path)
+            new_doc.close()
+
 
 if __name__ == '__main__':
-    # path = input('Pfad hier eingeben: ')
-    test   = Importer()
-    print(test.df.head())
-    name = input('Namen eingeben: ')
-    stamp = StampCreator(name, test.df)
-    stamp.boxplot()
-    df = test.main()
-    stamp_pad = Stamper('Arduch', df)
-    stamp_pad.stamp_and_save('./data/tmp/gestempelte_seite.pdf')
-    input('Enter drüken, um die Anzeige zu beenden.')
+    # Importer erstellen
+    importer = Importer()
+    print(importer.df.head())
+    
+    # Resampler mit Importer-Instanz
+    sampler = Resampler(importer)
+    sampler.folder_creator()
+    sampler.spliter()
+    
+    # Über alle Schüler iterieren
+    for name in importer.df.index:
+        print(f"\nVerarbeite {name}...")
+        
+        # StampCreator mit Importer-Instanz
+        stamp = StampCreator(name, importer)
+        stamp.boxplot()
+        
+        # Stamper mit Importer-Instanz
+        stamp_pad = Stamper(name, importer)
+        stamp_pad.stamp_and_save()
+        
+        # ✓ Kleine Pause für Windows
+        time.sleep(0.1)
+        
+        # ✓ Aufräumen (wieder aktiviert)
+        stamp.stamp_remover()
+        
+        print(f"✓ {name} fertig!")
+    
+    # Dokument schließen
+    importer.doc.close()
+    
+    print("\n=== Alle Schüler verarbeitet ===")
+    input('Enter drücken, um die Anzeige zu beenden.')
+
