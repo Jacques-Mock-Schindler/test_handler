@@ -70,7 +70,7 @@ class Stamper:
         self.df = data.df
         self.background = self._stamp_background_creator()
         
-    def _stamp_background_creator(self):
+    def _stamp_background_creator(self) -> plt.figure.Figure:
         # Create a figure and axis
         fig, ax = plt.subplots()
 
@@ -100,6 +100,44 @@ class Stamper:
         ax.set_xlabel('Note')
         
         return fig
+    
+    def _create_stamp(self, name: str, fig: plt.figure.Figure):
+        individuelle_note = self.df.loc[name, 'Note']
+        vorname = self.df.loc[name, 'Vorname']
+        ax = fig.axes[0]
+        
+        val_total = self.df.loc[name, 'Total']
+        val_note  = self.df.loc[name, 'Note']
+
+        cell_text = [
+            ['Punkte', f"{val_total}"],
+            ['Note',   f"{val_note}"]
+        ]
+
+        table = ax.table(
+                cellText=cell_text,
+                loc='upper center',
+                cellLoc='left',
+                colWidths=[0.2, 0.2]
+        )
+        
+        for cell in table.get_celld().values():
+            cell.set_linewidth(0)
+        table.scale(1, 2)
+        table.set_fontsize(12)
+        
+        ax.scatter(
+            x = individuelle_note,
+            y = 1,
+            color='blue',
+            marker='o',
+            s=75,
+            zorder=3,
+        )
+        ax.set_title(f'{vorname}s Note vor dem Hintergrund der Klassenleistung')
+        
+        return fig
+        
         
         
 
@@ -111,6 +149,10 @@ if __name__ == '__main__':
     stamp = Stamper(paths, data)
     
     print(stamp.background)
-    stamp.background.show()
+    
+    sticker = stamp._create_stamp('Arduch', stamp.background)
+    
+    sticker.show()
+    
     input('Zum Beenden des Programms ENTER drücken.')
     
