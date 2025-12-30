@@ -175,6 +175,11 @@ class Stamper:
             
         self.doc.save('./data/fahne_gestempelt.pdf', garbage=4, deflate=True)
         
+class FileManager:
+    def __init__(self, paths: Pathfinder, df: DataHandler) -> None:
+        self.path = paths.destination_folder
+        self.df   = df.df
+        
         
 
         
@@ -184,7 +189,9 @@ if __name__ == '__main__':
     print(data.df.head())
     stamp = Stamper(paths, data)
     
-    stamp.printing_press()    
+    stamp.printing_press()
+    
+    file_manager = FileManager(paths, data) 
     
     input('Zum Beenden des Programms ENTER drücken.')
     
