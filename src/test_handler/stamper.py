@@ -2,6 +2,8 @@
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import pymupdf
+import io
 
 class Pathfinder:
     def __init__(self):
@@ -69,6 +71,7 @@ class Stamper:
     def __init__(self, paths: Pathfinder, data: DataHandler):
         self.df = data.df
         self.background = self._stamp_background_creator()
+        self.doc = pymupdf.open(paths.doc)
         
     def _stamp_background_creator(self) -> plt.figure.Figure:
         # Create a figure and axis
@@ -101,7 +104,7 @@ class Stamper:
         
         return fig
     
-    def _create_stamp(self, name: str, fig: plt.figure.Figure):
+    def _create_stamp(self, name: str, fig: plt.figure.Figure) -> plt.figure.Figure:
         individuelle_note = self.df.loc[name, 'Note']
         vorname = self.df.loc[name, 'Vorname']
         ax = fig.axes[0]
@@ -137,8 +140,30 @@ class Stamper:
         ax.set_title(f'{vorname}s Note vor dem Hintergrund der Klassenleistung')
         
         return fig
+    
+    def _apply_stamp(self, page_number: int, fig: plt.figure.Figure):
+        doc = self.doc
+        buf = io.BytesIO()
         
+        width_in, height_in = fig.get_size_inches()
+        aspect_ratio = height_in / width_in
         
+        stamp_width = 200 
+        stamp_height = stamp_width * aspect_ratio
+        
+        x_start = 400
+        y_start = 100
+        position_rect = pymupdf.Rect(x_start, y_start, x_start + stamp_width, y_start + stamp_height)
+        
+        fig.savefig(buf, format="png", bbox_inches='tight', dpi=300)
+        
+        buf.seek(0)
+        
+        page = doc[page_number]
+        
+        page.insert_image(position_rect, stream=buf)
+        
+        buf.close()        
         
 
         
@@ -153,6 +178,12 @@ if __name__ == '__main__':
     sticker = stamp._create_stamp('Arduch', stamp.background)
     
     sticker.show()
+    
+    page = int(stamp.df.loc['Arduch', 'First'] - 1)
+        
+    stamp._apply_stamp(page, sticker)
+    
+    stamp.doc.save('./data/fahne_gestempelt.pdf', garbage=4, deflate=True)
     
     input('Zum Beenden des Programms ENTER drücken.')
     
