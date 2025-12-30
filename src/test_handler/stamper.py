@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import pymupdf
 import io
+from pathlib import Path
 
 class Pathfinder:
     def __init__(self):
@@ -180,6 +181,12 @@ class FileManager:
         self.path = paths.destination_folder
         self.df   = df.df
         
+    def folder_creator(self) -> None:
+        for name in self.df.index:
+            path = Path(self.path) / name
+            Path(path).mkdir(parents=True, exist_ok=True)
+        
+        
         
 
         
@@ -191,7 +198,8 @@ if __name__ == '__main__':
     
     stamp.printing_press()
     
-    file_manager = FileManager(paths, data) 
+    file_manager = FileManager(paths, data)
+    file_manager.folder_creator()
     
     input('Zum Beenden des Programms ENTER drücken.')
     
