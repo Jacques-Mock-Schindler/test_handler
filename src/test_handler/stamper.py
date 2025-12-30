@@ -70,7 +70,7 @@ class DataHandler:
 class Stamper:
     def __init__(self, paths: Pathfinder, data: DataHandler):
         self.df = data.df
-        self.background = self._stamp_background_creator()
+        # self.background = self._stamp_background_creator()
         self.doc = pymupdf.open(paths.doc)
         
     def _stamp_background_creator(self) -> plt.figure.Figure:
@@ -167,9 +167,11 @@ class Stamper:
         
     def printing_press(self) -> None:
         for name in self.df.index:
-            stamp = self._create_stamp(name, self.background)
+            fresh_fig = self._stamp_background_creator()
+            stamp = self._create_stamp(name, fresh_fig)
             page_number = int(self.df.loc[name, 'First']) - 1
             self._apply_stamp(page_number, stamp)
+            plt.close(stamp)
             
         self.doc.save('./data/fahne_gestempelt.pdf', garbage=4, deflate=True)
         
