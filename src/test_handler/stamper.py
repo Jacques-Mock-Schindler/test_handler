@@ -163,7 +163,16 @@ class Stamper:
         
         page.insert_image(position_rect, stream=buf)
         
-        buf.close()        
+        buf.close()
+        
+    def printing_press(self) -> None:
+        for name in self.df.index:
+            stamp = self._create_stamp(name, self.background)
+            page_number = int(self.df.loc[name, 'First']) - 1
+            self._apply_stamp(page_number, stamp)
+            
+        self.doc.save('./data/fahne_gestempelt.pdf', garbage=4, deflate=True)
+        
         
 
         
@@ -173,17 +182,7 @@ if __name__ == '__main__':
     print(data.df.head())
     stamp = Stamper(paths, data)
     
-    print(stamp.background)
-    
-    sticker = stamp._create_stamp('Arduch', stamp.background)
-    
-    sticker.show()
-    
-    page = int(stamp.df.loc['Arduch', 'First'] - 1)
-        
-    stamp._apply_stamp(page, sticker)
-    
-    stamp.doc.save('./data/fahne_gestempelt.pdf', garbage=4, deflate=True)
+    stamp.printing_press()    
     
     input('Zum Beenden des Programms ENTER drücken.')
     
