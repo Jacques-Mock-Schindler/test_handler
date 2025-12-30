@@ -1,6 +1,7 @@
 # stamper.py
 
 import pandas as pd
+import matplotlib.pyplot as plt
 
 class Pathfinder:
     def __init__(self):
@@ -63,6 +64,42 @@ class DataHandler:
         df = df.set_index('Name')
 
         return df
+    
+class Stamper:
+    def __init__(self, paths: Pathfinder, data: DataHandler):
+        self.df = data.df
+        self.background = self._stamp_background_creator()
+        
+    def _stamp_background_creator(self):
+        # Create a figure and axis
+        fig, ax = plt.subplots()
+
+        q1 = self.df['Note'].quantile(0.25)
+        q3 = self.df['Note'].quantile(0.75)
+
+        if q1 > 4:
+            box_color = 'green' 
+        elif q3 < 4:
+            box_color = 'red'
+        else:
+            box_color = 'orange'
+
+        # Create a boxplot for the desired column
+        bplot = ax.boxplot(self.df['Note'], 
+                   vert=False, 
+                   patch_artist=True,
+                   medianprops={
+                       'color': 'red',
+                       'linewidth': 3,
+                       'linestyle': '-',
+                   })
+        bplot['boxes'][0].set_facecolor(box_color)
+        bplot['boxes'][0].set_alpha(0.6)
+        
+        ax.set_yticks([])
+        ax.set_xlabel('Note')
+        
+        return fig
         
         
 
@@ -71,4 +108,9 @@ if __name__ == '__main__':
     paths = Pathfinder()
     data  = DataHandler(paths)
     print(data.df.head())
+    stamp = Stamper(paths, data)
+    
+    print(stamp.background)
+    stamp.background.show()
+    input('Zum Beenden des Programms ENTER drücken.')
     
