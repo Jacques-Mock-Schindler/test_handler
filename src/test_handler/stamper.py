@@ -181,10 +181,31 @@ class FileManager:
         self.path = paths.destination_folder
         self.df   = df.df
         
+        
     def folder_creator(self) -> None:
         for name in self.df.index:
             path = Path(self.path) / name
             Path(path).mkdir(parents=True, exist_ok=True)
+            
+    def file_distributor(self) -> None:
+        src_doc = pymupdf.open('./data/fahne_gestempelt.pdf')
+        
+        for name in self.df.index:
+            date = str(self.df.loc[name, 'Datum'])
+            title = str(self.df.loc[name, 'Titel'])
+            file_title = f'{date}_{name}_{title}.pdf'
+            start_page = int(self.df.loc[name, 'First']) - 1
+            end_page = int(self.df.loc[name, 'Last']) - 1
+            path = Path(self.path) / name / file_title
+            new_doc = pymupdf.open()
+            new_doc.insert_pdf(src_doc, from_page=start_page, to_page=end_page)
+            new_doc.save(path)
+        
+        src_doc.close()
+        pdf_path = Path('./data/fahne_gestempelt.pdf')
+        pdf_path.unlink(missing_ok=True)
+            
+            
         
         
         
@@ -200,6 +221,7 @@ if __name__ == '__main__':
     
     file_manager = FileManager(paths, data)
     file_manager.folder_creator()
+    file_manager.file_distributor()
     
     input('Zum Beenden des Programms ENTER drücken.')
     
